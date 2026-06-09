@@ -218,7 +218,7 @@ export default function PortalApp({ initialSession }) {
       </header>
 
       <main id="top">
-        <section className="section section--portal" id="portal">
+        <section className={`section section--portal ${!isAuthorized ? "section--portal-centered" : ""}`} id="portal">
           <div>
               {!session ? (
                 <div className="auth-card">
@@ -748,19 +748,23 @@ export default function PortalApp({ initialSession }) {
         </div>
         <div>
           <h4>Connect</h4>
-          <a href="https://www.instagram.com/artisthouse.world/" target="_blank" rel="noreferrer">
+          <a href="https://www.instagram.com/artisthousehq" target="_blank" rel="noreferrer">
             Instagram
           </a>
           <br />
-          <a href="https://www.tiktok.com" target="_blank" rel="noreferrer">
+          <a href="https://www.tiktok.com/@artisthousehq" target="_blank" rel="noreferrer">
             TikTok
           </a>
         </div>
         <div>
           <h4>Terms & Privacy</h4>
-          <a href="#top">Terms & Conditions</a>
+          <a href="https://www.artisthouse.world/terms-and-conditions" target="_blank" rel="noreferrer">
+            Terms & Conditions
+          </a>
           <br />
-          <a href="#top">Privacy Policy</a>
+          <a href="https://www.artisthouse.world/privacy-policy" target="_blank" rel="noreferrer">
+            Privacy Policy
+          </a>
         </div>
       </footer>
     </div>
