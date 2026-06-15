@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EXPLICIT_OPTIONS, INITIAL_FORM_VALUES, RELEASE_TYPES, STEP_DEFINITIONS, WATERFALL_OPTIONS } from "@/lib/release-config";
 
 function getTrackPreview(value) {
@@ -66,10 +66,35 @@ export default function PortalApp({ initialSession }) {
     type: "idle",
     message: ""
   });
+  const [isSuccessFading, setIsSuccessFading] = useState(false);
 
   const currentStep = STEP_DEFINITIONS[stepIndex];
   const trackPreview = getTrackPreview(releaseType === "album" ? formValues.tracklist : formValues.waterfallTracklist);
   const isAuthorized = Boolean(session?.authorized);
+
+  useEffect(() => {
+    if (status.type !== "success") {
+      setIsSuccessFading(false);
+      return;
+    }
+
+    const fadeTimer = window.setTimeout(() => {
+      setIsSuccessFading(true);
+    }, 5200);
+
+    const clearTimer = window.setTimeout(() => {
+      setStatus({
+        type: "idle",
+        message: ""
+      });
+      setIsSuccessFading(false);
+    }, 6200);
+
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [status]);
 
   function updateField(field, value) {
     setFormValues((current) => ({
@@ -394,7 +419,7 @@ export default function PortalApp({ initialSession }) {
                     <p className="step-description">{currentStep.description}</p>
 
                     {status.type === "error" ? <div className="error-banner">{status.message}</div> : null}
-                    {status.type === "success" ? <div className="success-banner">{status.message}</div> : null}
+                    {status.type === "success" ? <div className={`success-banner ${isSuccessFading ? "is-fading" : ""}`}>{status.message}</div> : null}
                     {status.type === "loading" ? <div className="success-banner">{status.message}</div> : null}
 
                   {currentStep.id === "song" ? (
