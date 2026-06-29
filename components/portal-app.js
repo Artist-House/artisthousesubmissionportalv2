@@ -20,6 +20,18 @@ function getStepErrors(releaseType, formValues, files, stepId) {
       errors.title = "Title is required.";
     }
 
+    if (!formValues.mainArtists.trim()) {
+      errors.mainArtists = "Main artist is required.";
+    }
+
+    if (!formValues.labelName.trim()) {
+      errors.labelName = "Label name is required.";
+    }
+
+    if (!formValues.pLine.trim()) {
+      errors.pLine = "P-Line is required.";
+    }
+
     if (releaseType === "album" && !formValues.tracklist.trim()) {
       errors.tracklist = "Tracklist is required for Album / EP.";
     }
@@ -485,7 +497,7 @@ export default function PortalApp({ initialSession }) {
 
                         <div className="field">
                           <label className="field-label" htmlFor="mainArtists">
-                            Main Artist(s){releaseType === "album" ? <span className="required-mark"> *</span> : null}
+                            Main Artist(s) <span className="required-mark">*</span>
                           </label>
                           <input
                             id="mainArtists"
@@ -493,11 +505,12 @@ export default function PortalApp({ initialSession }) {
                             value={formValues.mainArtists}
                             onChange={(event) => updateField("mainArtists", event.target.value)}
                           />
+                          {errors.mainArtists ? <div className="field-help">{errors.mainArtists}</div> : null}
                         </div>
 
                         <div className="field">
                           <label className="field-label" htmlFor="labelName">
-                            Label Name
+                            Label Name <span className="required-mark">*</span>
                           </label>
                           <input
                             id="labelName"
@@ -505,6 +518,21 @@ export default function PortalApp({ initialSession }) {
                             value={formValues.labelName}
                             onChange={(event) => updateField("labelName", event.target.value)}
                           />
+                          {errors.labelName ? <div className="field-help">{errors.labelName}</div> : null}
+                        </div>
+
+                        <div className="field">
+                          <label className="field-label" htmlFor="pLine">
+                            P-Line <span className="required-mark">*</span>
+                          </label>
+                          <input
+                            id="pLine"
+                            className="text-input"
+                            value={formValues.pLine}
+                            onChange={(event) => updateField("pLine", event.target.value)}
+                          />
+                          <div className="field-help">If Artist House release, put "Artist House, LLC"</div>
+                          {errors.pLine ? <div className="field-help">{errors.pLine}</div> : null}
                         </div>
 
                         {releaseType === "single" ? (
