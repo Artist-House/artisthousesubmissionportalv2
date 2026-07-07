@@ -1,7 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { EXPLICIT_OPTIONS, INITIAL_FORM_VALUES, RELEASE_TYPES, STEP_DEFINITIONS, WATERFALL_OPTIONS } from "@/lib/release-config";
+import { EXPLICIT_OPTIONS, GENRE_OPTIONS, INITIAL_FORM_VALUES, RELEASE_TYPES, STEP_DEFINITIONS, WATERFALL_OPTIONS } from "@/lib/release-config";
+
+function GenreSelect({ id, value, onChange }) {
+  // Legacy rows can hold free-text genres; keep them selectable so editing doesn't wipe the value.
+  const isLegacyValue = Boolean(value) && !GENRE_OPTIONS.includes(value);
+
+  return (
+    <select id={id} className="select" value={value} onChange={onChange}>
+      <option value="">Select genre</option>
+      {isLegacyValue ? <option value={value}>{value}</option> : null}
+      {GENRE_OPTIONS.map((option) => (
+        <option value={option} key={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function getTrackPreview(value) {
   return value
@@ -79,10 +96,46 @@ export default function PortalApp({ initialSession }) {
     message: ""
   });
   const [isSuccessFading, setIsSuccessFading] = useState(false);
+  const [submissions, setSubmissions] = useState([]);
+  const [view, setView] = useState("loading");
 
   const currentStep = STEP_DEFINITIONS[stepIndex];
   const trackPreview = getTrackPreview(releaseType === "album" ? formValues.tracklist : formValues.waterfallTracklist);
   const isAuthorized = Boolean(session?.authorized);
+
+  useEffect(() => {
+    if (!isAuthorized) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadSubmissions() {
+      try {
+        const response = await fetch("/api/submissions/list");
+        const result = await response.json();
+
+        if (cancelled) {
+          return;
+        }
+
+        const matches = response.ok && result.matches ? result.matches : [];
+        setSubmissions(matches);
+        setView(matches.length ? "list" : "form");
+      } catch {
+        if (!cancelled) {
+          setSubmissions([]);
+          setView("form");
+        }
+      }
+    }
+
+    loadSubmissions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthorized]);
 
   useEffect(() => {
     if (status.type !== "success") {
@@ -188,6 +241,41 @@ export default function PortalApp({ initialSession }) {
       message: "",
       matches: []
     });
+  }
+
+  function startNewSubmission() {
+    setFormValues(INITIAL_FORM_VALUES);
+    clearEditingState();
+    setFiles({
+      lyricsFile: null,
+      coverArtFile: null
+    });
+    setErrors({});
+    setStepIndex(0);
+    setReleaseType("album");
+    setStatus({
+      type: "idle",
+      message: ""
+    });
+    setView("form");
+  }
+
+  function handleEditSubmission(match) {
+    applyExistingSubmission(match);
+    setStepIndex(0);
+    setView("form");
+  }
+
+  async function refreshSubmissions() {
+    try {
+      const response = await fetch("/api/submissions/list");
+      const result = await response.json();
+      const matches = response.ok && result.matches ? result.matches : [];
+      setSubmissions(matches);
+      return matches;
+    } catch {
+      return submissions;
+    }
   }
 
   async function handleFindExistingSubmission() {
@@ -315,6 +403,12 @@ export default function PortalApp({ initialSession }) {
     });
     setStepIndex(0);
     setReleaseType("album");
+
+    const matches = await refreshSubmissions();
+
+    if (matches.length) {
+      setView("list");
+    }
   }
 
   return (
@@ -354,11 +448,12 @@ export default function PortalApp({ initialSession }) {
 
               {session && !isAuthorized ? (
                 <div className="auth-card">
-                  <div className="auth-label">Access Denied</div>
-                  <h2 className="denied-title">This Google account is not on the registered user list.</h2>
+                  <div className="auth-label">Access Requested</div>
+                  <h2 className="denied-title">You have requested access, please wait for permission.</h2>
                   <p className="denied-copy">
-                    Signed in as {session.email}. Ask the Artist House team to add this address to the
-                    Notion allowlist, then try again.
+                    Signed in as {session.email}. Feel free to follow up with{" "}
+                    <a href="mailto:brandon@artisthouse.world">brandon@artisthouse.world</a>. Thank you
+                    for your patience.
                   </p>
                   <button className="button" onClick={handleLogout} type="button">
                     Sign Out
@@ -366,7 +461,65 @@ export default function PortalApp({ initialSession }) {
                 </div>
               ) : null}
 
-              {isAuthorized ? (
+              {isAuthorized && view === "loading" ? (
+                <div className="auth-card">
+                  <h2 className="auth-title">Loading your submissions...</h2>
+                  <p>Checking Notion for releases submitted under {session.email}.</p>
+                </div>
+              ) : null}
+
+              {isAuthorized && view === "list" ? (
+                <>
+                  <div className="release-switcher">
+                    <div className="eyebrow">Authorized Session</div>
+                    <h2 className="portal-title">Welcome back{session.name ? `, ${session.name}` : ""}.</h2>
+                    <p className="portal-copy">
+                      Signed in as {session.email}. Review your submissions to date, edit an existing
+                      release, or start a new one.
+                    </p>
+                  </div>
+
+                  <div className="step-panel">
+                    {status.type === "success" ? <div className={`success-banner ${isSuccessFading ? "is-fading" : ""}`}>{status.message}</div> : null}
+                    <div className="submissions-header">
+                      <h3 className="step-title">Your Submissions</h3>
+                      <button className="button button--solid submissions-new" type="button" onClick={startNewSubmission}>
+                        + New Submission
+                      </button>
+                    </div>
+                    <div className="submissions-table-wrap">
+                      <table className="submissions-table">
+                        <thead>
+                          <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Release Date</th>
+                            <th>Last Updated</th>
+                            <th aria-label="Actions"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {submissions.map((match) => (
+                            <tr key={match.pageId}>
+                              <td>{match.formValues.title || "Untitled release"}</td>
+                              <td>{match.releaseType === "single" ? "Single" : "Album / EP"}</td>
+                              <td>{match.formValues.releaseDate || "—"}</td>
+                              <td>{new Date(match.updatedAt).toLocaleDateString()}</td>
+                              <td>
+                                <button className="ghost-button" type="button" onClick={() => handleEditSubmission(match)}>
+                                  Edit
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              {isAuthorized && view === "form" ? (
                 <>
                   <div className="release-switcher">
                     <div className="eyebrow">Authorized Session</div>
@@ -375,6 +528,11 @@ export default function PortalApp({ initialSession }) {
                       Signed in as {session.email}. Choose the release format before moving through
                       the submission tabs.
                     </p>
+                    {submissions.length ? (
+                      <button className="ghost-button" type="button" onClick={() => setView("list")}>
+                        ← Back to My Submissions
+                      </button>
+                    ) : null}
                     {editingPageId ? (
                       <div className="field-help">
                         Editing existing {releaseType === "single" ? "Single" : "Album / EP"} submission. Release type is locked while editing.
@@ -650,9 +808,8 @@ export default function PortalApp({ initialSession }) {
                           <label className="field-label" htmlFor="mainGenre">
                             Main Genre <span className="required-mark">*</span>
                           </label>
-                          <input
+                          <GenreSelect
                             id="mainGenre"
-                            className="text-input"
                             value={formValues.mainGenre}
                             onChange={(event) => updateField("mainGenre", event.target.value)}
                           />
@@ -662,9 +819,8 @@ export default function PortalApp({ initialSession }) {
                           <label className="field-label" htmlFor="subGenre">
                             Sub Genre
                           </label>
-                          <input
+                          <GenreSelect
                             id="subGenre"
-                            className="text-input"
                             value={formValues.subGenre}
                             onChange={(event) => updateField("subGenre", event.target.value)}
                           />
@@ -673,9 +829,8 @@ export default function PortalApp({ initialSession }) {
                           <label className="field-label" htmlFor="secondaryGenre">
                             Secondary Genre
                           </label>
-                          <input
+                          <GenreSelect
                             id="secondaryGenre"
-                            className="text-input"
                             value={formValues.secondaryGenre}
                             onChange={(event) => updateField("secondaryGenre", event.target.value)}
                           />
@@ -684,9 +839,8 @@ export default function PortalApp({ initialSession }) {
                           <label className="field-label" htmlFor="secondarySubGenre">
                             Secondary Sub Genre
                           </label>
-                          <input
+                          <GenreSelect
                             id="secondarySubGenre"
-                            className="text-input"
                             value={formValues.secondarySubGenre}
                             onChange={(event) => updateField("secondarySubGenre", event.target.value)}
                           />

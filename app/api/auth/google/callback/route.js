@@ -8,8 +8,11 @@ import {
   SESSION_COOKIE_NAME
 } from "@/lib/session";
 import { isEmailAllowed } from "@/lib/notion";
+import { sendAccessRequestEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
+
+const ACCESS_REQUEST_COOKIE_NAME = "artist_house_access_requested";
 
 export async function GET(request) {
   const env = getEnv();
@@ -60,15 +63,30 @@ export async function GET(request) {
   }
 
   const profile = await userInfoResponse.json();
-  const authorized = await isEmailAllowed(String(profile.email).trim().toLowerCase());
+  const email = String(profile.email).trim().toLowerCase();
+  const authorized = await isEmailAllowed(email);
   const sessionToken = await createSessionToken({
-    email: String(profile.email).trim().toLowerCase(),
+    email,
     name: profile.name || "",
     picture: profile.picture || "",
     authorized
   });
 
   const response = NextResponse.redirect(redirectHome);
+
+  if (!authorized) {
+    const alreadyRequested = request.cookies.get(ACCESS_REQUEST_COOKIE_NAME)?.value === email;
+
+    if (!alreadyRequested) {
+      try {
+        await sendAccessRequestEmail({ email, name: profile.name || "" });
+        response.cookies.set(ACCESS_REQUEST_COOKIE_NAME, email, getSessionCookieOptions());
+      } catch (error) {
+        console.error("Access request email failed:", error);
+      }
+    }
+  }
+
   response.cookies.set(SESSION_COOKIE_NAME, sessionToken, getSessionCookieOptions());
   response.cookies.set(OAUTH_STATE_COOKIE_NAME, "", {
     ...getStateCookieOptions(),
