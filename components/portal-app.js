@@ -77,11 +77,6 @@ export default function PortalApp({ initialSession }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [formValues, setFormValues] = useState(INITIAL_FORM_VALUES);
   const [editingPageId, setEditingPageId] = useState("");
-  const [lookupState, setLookupState] = useState({
-    type: "idle",
-    message: "",
-    matches: []
-  });
   const [existingAssets, setExistingAssets] = useState({
     lyrics: false,
     coverArt: false
@@ -236,11 +231,6 @@ export default function PortalApp({ initialSession }) {
       lyrics: false,
       coverArt: false
     });
-    setLookupState({
-      type: "idle",
-      message: "",
-      matches: []
-    });
   }
 
   function startNewSubmission() {
@@ -276,55 +266,6 @@ export default function PortalApp({ initialSession }) {
     } catch {
       return submissions;
     }
-  }
-
-  async function handleFindExistingSubmission() {
-    if (!formValues.title.trim()) {
-      setLookupState({
-        type: "error",
-        message: "Enter a title first to look for an existing submission.",
-        matches: []
-      });
-      return;
-    }
-
-    setLookupState({
-      type: "loading",
-      message: "Checking Notion for an existing submission...",
-      matches: []
-    });
-
-    const response = await fetch(`/api/submissions/find?title=${encodeURIComponent(formValues.title.trim())}`);
-    const result = await response.json();
-
-    if (!response.ok) {
-      setLookupState({
-        type: "error",
-        message: result.error || "Could not check for existing submissions.",
-        matches: []
-      });
-      return;
-    }
-
-    if (!result.matches?.length) {
-      setLookupState({
-        type: "empty",
-        message: "No existing submission found for this title under your account.",
-        matches: []
-      });
-      return;
-    }
-
-    if (result.matches.length === 1) {
-      applyExistingSubmission(result.matches[0]);
-      return;
-    }
-
-    setLookupState({
-      type: "multiple",
-      message: "Multiple submissions matched this title. Choose the one you want to edit.",
-      matches: result.matches
-    });
   }
 
   async function handleSubmit(event) {
@@ -604,38 +545,7 @@ export default function PortalApp({ initialSession }) {
                             value={formValues.title}
                             onChange={(event) => updateField("title", event.target.value)}
                           />
-                          <div className="field-actions">
-                            <button className="ghost-button" type="button" onClick={handleFindExistingSubmission}>
-                              Find Existing Submission
-                            </button>
-                            {editingPageId ? (
-                              <button className="ghost-button" type="button" onClick={clearEditingState}>
-                                Stop Editing Existing
-                              </button>
-                            ) : null}
-                          </div>
                           {errors.title ? <div className="field-help">{errors.title}</div> : null}
-                          {lookupState.type !== "idle" ? (
-                            <div className={`lookup-banner lookup-banner--${lookupState.type === "error" ? "error" : "info"}`}>
-                              {lookupState.message}
-                            </div>
-                          ) : null}
-                          {lookupState.type === "multiple" ? (
-                            <div className="lookup-results">
-                              {lookupState.matches.map((match) => (
-                                <button
-                                  key={match.pageId}
-                                  type="button"
-                                  className="lookup-result"
-                                  onClick={() => applyExistingSubmission(match)}
-                                >
-                                  <strong>{match.formValues.title || "Untitled release"}</strong>
-                                  <span>{match.releaseType === "single" ? "Single" : "Album / EP"}</span>
-                                  <span>Updated {new Date(match.updatedAt).toLocaleDateString()}</span>
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
                         </div>
 
                         {releaseType === "single" ? (
