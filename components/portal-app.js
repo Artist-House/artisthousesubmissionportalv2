@@ -213,11 +213,6 @@ export default function PortalApp({ initialSession }) {
       lyricsFile: null,
       coverArtFile: null
     });
-    setLookupState({
-      type: "loaded",
-      message: "Existing submission loaded. Updating this form will edit the current Notion row.",
-      matches: []
-    });
     setErrors({});
     setStatus({
       type: "idle",
@@ -295,7 +290,7 @@ export default function PortalApp({ initialSession }) {
     setErrors({});
     setStatus({
       type: "loading",
-      message: "Submitting release to Artist House and Notion..."
+      message: "Submitting release to Artist House..."
     });
 
     const payload = {
@@ -333,8 +328,8 @@ export default function PortalApp({ initialSession }) {
     setStatus({
       type: "success",
       message: editingPageId
-        ? "Release updated successfully. The existing Notion row has been updated."
-        : "Release submitted successfully. The row has been added to the release schedule."
+        ? "Release updated successfully."
+        : "Release submitted successfully."
     });
     setFormValues(INITIAL_FORM_VALUES);
     clearEditingState();
@@ -405,7 +400,7 @@ export default function PortalApp({ initialSession }) {
               {isAuthorized && view === "loading" ? (
                 <div className="auth-card">
                   <h2 className="auth-title">Loading your submissions...</h2>
-                  <p>Checking Notion for releases submitted under {session.email}.</p>
+                  <p>Retrieving your releases...</p>
                 </div>
               ) : null}
 
